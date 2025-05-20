@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="shortcut icon" href="Namrata Logo-modified.png" type="image/x-icon">
+  <title>Physics RPS</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px auto;
+      max-width: 700px;
+      background: #f9f9f9;
+      padding: 20px;
+      color: #222;
+    }
+    h1 {
+      color: #1e2a78;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    input[type=text] {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      border: 1.5px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 15px;
+      padding: 12px 20px;
+      background-color: #1e2a78;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      user-select: none;
+    }
+    button:hover:not(:disabled) {
+      background-color: #16366f;
+    }
+    button:disabled {
+      background-color: #888;
+      cursor: not-allowed;
+    }
+    .loading {
+      margin-top: 10px;
+      font-style: italic;
+      color: #555;
+    }
+    .article {
+      background: white;
+      padding: 15px 20px;
+      margin: 15px 0;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .article h3 {
+      margin-top: 0;
+      color: #1e2a78;
+    }
+    .article p {
+      white-space: pre-wrap;
+      margin-bottom: 8px;
+    }
+    .article small {
+      color: #666;
+      font-style: italic;
+    }
+    .article a.arxiv-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: #0b72d9;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .article a.arxiv-link:hover {
+      text-decoration: underline;
+    }
+    .pagination {
+      text-align: center;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Physics Research Paper Summarizer</h1>
+
+  <input type="text" id="searchInput" placeholder="Enter physics topic (e.g. entanglement)" />
+  <button id="searchBtn">Search</button>
+
+  <div id="loading" class="loading" style="display:none;">Loading...</div>
+  <div id="results"></div>
+
+  <div class="pagination" id="pagination" style="display:none;">
+    <button id="prevBtn" disabled>Previous</button>
+    <button id="nextBtn" disabled>Next</button>
+  </div>
+
+  <script>
+    const searchBtn = document.getElementById('searchBtn');
+    const searchInput = document.getElementById('searchInput');
+    const resultsDiv = document.getElementById('results');
+    const loadingDiv = document.getElementById('loading');
+    const paginationDiv = document.getElementById('pagination');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    let currentPage = 0;
+    const resultsPerPage = 10;
+    let currentQuery = '';
+
+    function parseXml(xmlStr) {
+      return new window.DOMParser().parseFromString(xmlStr, "text/xml");
+    }
+
+    async function fetchArxiv(query, start = 0, max_results = resultsPerPage) {
+      // arXiv API URL without category filter
+      const url = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&start=${start}&max_results=${max_results}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      const text = await response.text();
+      return parseXml(text);
+    }
+
+    function parseEntries(xml) {
+      const entries = xml.getElementsByTagName('entry');
+      const articles = [];
+      for (let entry of entries) {
+        const title = entry.getElementsByTagName('title')[0]?.textContent.trim() || 'No Title';
+        const summary = entry.getElementsByTagName('summary')[0]?.textContent.trim() || 'No Summary';
+        const published = entry.getElementsByTagName('published')[0]?.textContent.split('T')[0] || 'No Date';
+        const authors = Array.from(entry.getElementsByTagName('author'))
+                          .map(a => a.getElementsByTagName('name')[0]?.textContent)
+                          .join(', ') || 'Unknown Authors';
+        const idLink = entry.getElementsByTagName('id')[0]?.textContent || '#';
+
+        articles.push({ title, summary, published, authors, link: idLink });
+      }
+      return articles;
+    }
+
+    function renderArticles(articles) {
+      if (articles.length === 0) {
+        resultsDiv.innerHTML = '<div class="no-results">No articles found for your query.</div>';
+        return;
+      }
+
+      resultsDiv.innerHTML = '';
+
+      for (let article of articles) {
+        const div = document.createElement('div');
+        div.className = 'article';
+
+        div.innerHTML = `
+          <h3>${article.title}</h3>
+          <small><strong>Authors:</strong> ${article.authors}</small><br/>
+          <small><strong>Published:</strong> ${article.published}</small>
+          <p>${article.summary}</p>
+          <a href="${article.link}" target="_blank" class="arxiv-link" rel="noopener noreferrer">View on arXiv &rarr;</a>
+        `;
+
+        resultsDiv.appendChild(div);
+      }
+    }
+
+    async function searchAndRender(query, page) {
+      loadingDiv.style.display = 'block';
+      resultsDiv.innerHTML = '';
+      paginationDiv.style.display = 'none';
+      try {
+        const startIndex = page * resultsPerPage;
+        const xml = await fetchArxiv(query, startIndex, resultsPerPage);
+        const articles = parseEntries(xml);
+        renderArticles(articles);
+
+        // Show pagination if articles found
+        if (articles.length > 0) {
+          paginationDiv.style.display = 'block';
+          prevBtn.disabled = page === 0;
+          // arXiv can return fewer than requested results on last page
+          nextBtn.disabled = articles.length < resultsPerPage;
+        } else {
+          paginationDiv.style.display = 'none';
+        }
+      } catch (err) {
+        resultsDiv.innerHTML = `<div class="no-results">Error: ${err.message}</div>`;
+        paginationDiv.style.display = 'none';
+      } finally {
+        loadingDiv.style.display = 'none';
+      }
+    }
+
+    searchBtn.addEventListener('click', () => {
+      const query = searchInput.value.trim();
+      if (!query) return;
+      currentQuery = query;
+      currentPage = 0;
+      searchAndRender(currentQuery, currentPage);
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentPage === 0) return;
+      currentPage--;
+      searchAndRender(currentQuery, currentPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    nextBtn.addEventListener('click', () => {
+      currentPage++;
+      searchAndRender(currentQuery, currentPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Allow Enter key to trigger search
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchBtn.click();
+      }
+    });
+  </script>
+
+</body>
+</html>
+
+
