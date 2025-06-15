@@ -1,14 +1,24 @@
-Physics Research Paper Summary Tool
-A simple web app that lets users search for physics research papers via the arXiv API and generates AI-powered concise summaries.
-Features include:
+# Physics Research Paper Summarizer
 
-Search and browse recent physics papers
+An AI-powered tool that fetches the latest research from arXiv and summarizes physics abstracts using advanced NLP—designed to streamline academic reading and discovery.
 
-View paper details and abstracts
+## Features
+- Live search for physics papers via arXiv API
+- AI-generated summaries of paper abstracts
+- Clean, mobile-friendly user interface
+- Ideal for students, researchers, and science communicators
 
-AI-generated summaries for quick insights
+## How to Use
+1. Visit: [Physics Research Summarizer](https://namrata567.github.io/Physics-Research-Paper-Summarizer/)
+2. Search by keyword or topic (e.g., "quantum gravity")
+3. Browse results and read auto-generated summaries
+4. Click links to view full papers on arXiv
 
-Responsive, clean UI for easy navigation
+## Tech Stack
+- HTML / CSS / JavaScript (Frontend)
+- arXiv API for fetching paper metadata
+- AI summarization using OpenAI (or local logic)
 
-This tool helps researchers and students quickly grasp complex physics research without reading entire papers, making literature review faster and more efficient.
+## License
+MIT
 
